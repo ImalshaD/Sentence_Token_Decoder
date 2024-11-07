@@ -50,7 +50,7 @@ class NITModel(PreTrainedModel):
             truncation=True,
             max_length=self.maxTokens
         )
-        output = TokenizerOutputs(encoding["input_ids"], encoding["attention_mask"])
+        output = TokenizerOutputs(encoding["input_ids"].to(self.device_me), encoding["attention_mask"].to(self.device_me))
         return output
     
     def get_embeddings(self, inputs : TokenizerOutputs):
