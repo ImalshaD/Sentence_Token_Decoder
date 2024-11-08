@@ -5,8 +5,8 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 # from einops import rearrange
 
 from .NITConfig import NITConfig
-from ..AlignmentModels import AlignmentModel
-from ..NitUtils import TokenizerOutputs, EmbeddingsOutputs
+from AlignmentModels import AlignmentModel
+from NitUtils import TokenizerOutputs, EmbeddingsOutputs
 
 import torch.nn as nn
 import torch.nn.functional as F

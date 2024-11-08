@@ -2,7 +2,7 @@ import torch
 from abc import ABC
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
-from ..NitUtils import TokenizerOutputs, EmbeddingsOutputs
+from NitUtils import TokenizerOutputs, EmbeddingsOutputs
 
 class NitEncoder(ABC):
 
@@ -15,6 +15,7 @@ class NitEncoder(ABC):
         self.padding = padding
         self.template = None
         self.device_me = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.to(self.device_me)
 
     def setPadding(self,padding):
         self.padding = padding
@@ -44,9 +45,13 @@ class NitEncoder(ABC):
         for param in self.model.parameters():
             param.requires_grad = True
     
-    def get_inputIds(self, texts):
+    def applyTemplate(self,texts):
         if self.template is not None:
-            texts = [self.template.format(text) for text in texts]
+            return [self.template.format(text) for text in texts]
+        return texts
+    
+    def get_inputIds(self, texts):
+        texts = self.applyTemplate(texts)
         encoding = self.tokenizer(
             texts,
             return_tensors='pt',
@@ -60,11 +65,11 @@ class NitEncoder(ABC):
     def get_embeddings(self, inputs : TokenizerOutputs):
         return EmbeddingsOutputs(self.embedding_layer(inputs.input_ids), inputs.attention_mask)
 
-    def original_pipeline(self, texts):
+    def get_embeddings_from_text(self, texts):
         return self.get_embeddings(self.get_inputIds(texts))
     
 class NitMT5encoder(NitEncoder):
     def __init__(self,cache_dir, max_tokens = 100, padding='max_length'):
         model = AutoModelForSeq2SeqLM.from_pretrained("google/mt5-large", cache_dir = cache_dir)
-        tokenizer = AutoTokenizer.from_pretrained("google/mt5-large", cache_dir = cache_dir, legacy=False, padding_side='left')
+        tokenizer = AutoTokenizer.from_pretrained("google/mt5-large", cache_dir = cache_dir, legacy=True, padding_side='left')
         super().__init__(model, tokenizer, max_tokens, padding)

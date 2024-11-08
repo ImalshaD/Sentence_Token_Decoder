@@ -1,14 +1,14 @@
-from ..NitUtils import EmbeddingsOutputs
+from NitUtils import EmbeddingsOutputs
 from .NitEncoder import NitEncoder
 from abc import ABC, abstractmethod
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 class NitLLM(NitEncoder, ABC):
     
-    def __init__(self,llm_name,cache_dir):
+    def __init__(self,llm_name,cache_dir, max_tokens = 100 , padding='max_length'):
         model = AutoModelForCausalLM.from_pretrained(llm_name, cache_dir = cache_dir)
         tokenizer = AutoTokenizer.from_pretrained(llm_name, cache_dir = cache_dir,padding_side='left')
-        super().__init__(model, tokenizer)
+        super().__init__(model, tokenizer, max_tokens, padding)
 
     def get_outputs(self, embeddings : EmbeddingsOutputs, **kwargs):
         return self.model(
@@ -19,7 +19,7 @@ class NitLLM(NitEncoder, ABC):
         )
     
     def get_outputs_from_text(self, texts, **kwargs):
-        return self.get_outputs(self.original_pipeline(texts), **kwargs)
+        return self.get_outputs(self.get_embeddings_from_text(texts), **kwargs)
     
     @abstractmethod
     def get_outputlogits(self, texts,**kwargs):
@@ -30,8 +30,8 @@ class NitLLM(NitEncoder, ABC):
         pass
 
 class NitQwenMathInstruct(NitLLM):
-    def __init__(self,cache_dir, use_best = True):
-        super().__init__("Qwen/Qwen2.5-Math-1.5B-Instruct",cache_dir)
+    def __init__(self,cache_dir, max_tokens=100, padding = 'max_length' ,use_best = True):
+        super().__init__("Qwen/Qwen2.5-Math-1.5B-Instruct",cache_dir,max_tokens,padding)
         self.best_config = {
             'max_new_tokens' : 512,
             'do_sample' : True, 
