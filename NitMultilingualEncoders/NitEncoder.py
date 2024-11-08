@@ -29,6 +29,12 @@ class NitEncoder(ABC):
         self.model.to(device)
         self.embedding_layer.to(device)
         self.device_me = device
+
+    def getEmbedding_dim(self):
+        return self.embedding_size
+    
+    def getEmbedding_shape(self):
+        return (self.max_tokens,self.embedding_size)
     
     def freeze(self):
         for param in self.model.parameters():
@@ -52,7 +58,7 @@ class NitEncoder(ABC):
         return output
     
     def get_embeddings(self, inputs : TokenizerOutputs):
-        return EmbeddingsOutputs(self.embeddings(inputs.input_ids), inputs.attention_mask)
+        return EmbeddingsOutputs(self.embedding_layer(inputs.input_ids), inputs.attention_mask)
 
     def original_pipeline(self, texts):
         return self.get_embeddings(self.get_inputIds(texts))
