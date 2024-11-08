@@ -58,7 +58,7 @@ class NitEncoder(ABC):
         return self.get_embeddings(self.get_inputIds(texts))
     
 class NitMT5encoder(NitEncoder):
-    def __init__(self,cache_dir):
+    def __init__(self,cache_dir, max_tokens = 100, padding='max_length'):
         model = AutoModelForSeq2SeqLM.from_pretrained("google/mt5-large", cache_dir = cache_dir)
         tokenizer = AutoTokenizer.from_pretrained("google/mt5-large", cache_dir = cache_dir, legacy=False, padding_side='left')
-        super().__init__(model, tokenizer)
+        super().__init__(model, tokenizer, max_tokens, padding)
