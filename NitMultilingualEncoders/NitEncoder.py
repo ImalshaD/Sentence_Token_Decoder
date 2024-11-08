@@ -13,9 +13,14 @@ class NitEncoder(ABC):
         self.embedding_layer = self.model.get_input_embeddings()
         self.max_tokens = max_tokens
         self.padding = padding
+        self.template = None
+        self.device_me = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def setPadding(self,padding):
         self.padding = padding
+
+    def setTemplate(self,template):
+        self.template = template
 
     def setMaxTokens(self,max_tokens):  
         self.max_tokens = max_tokens
@@ -34,6 +39,8 @@ class NitEncoder(ABC):
             param.requires_grad = True
     
     def get_inputIds(self, texts):
+        if self.template is not None:
+            texts = [self.template.format(text) for text in texts]
         encoding = self.tokenizer(
             texts,
             return_tensors='pt',
