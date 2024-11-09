@@ -1,7 +1,8 @@
 import torch
 from abc import ABC
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModel
 
+import re
 from NitUtils import TokenizerOutputs, EmbeddingsOutputs
 
 class NitEncoder(ABC):
@@ -50,7 +51,11 @@ class NitEncoder(ABC):
             return [self.template.format(text) for text in texts]
         return texts
     
+    def applyFormating(self,texts):
+        return texts
+    
     def get_inputIds(self, texts):
+        texts = self.applyFormating(texts)
         texts = self.applyTemplate(texts)
         encoding = self.tokenizer(
             texts,
@@ -73,3 +78,31 @@ class NitMT5encoder(NitEncoder):
         model = AutoModelForSeq2SeqLM.from_pretrained("google/mt5-large", cache_dir = cache_dir)
         tokenizer = AutoTokenizer.from_pretrained("google/mt5-large", cache_dir = cache_dir, legacy=True, padding_side='left')
         super().__init__(model, tokenizer, max_tokens, padding)
+
+class NitRobertaencoder(NitEncoder):
+    def __init__(self,cache_dir, max_tokens = 100, padding='max_length'):
+        model = AutoModel.from_pretrained("FacebookAI/roberta-base", cache_dir = cache_dir)
+        tokenizer = AutoTokenizer.from_pretrained("FacebookAI/roberta-base", cache_dir = cache_dir, padding_side='right')
+        super().__init__(model, tokenizer, max_tokens, padding)
+
+    def get_embeddings(self, inputs : TokenizerOutputs, **kwargs):
+        hidden_layer = kwargs.get("hiddenLayer", True)
+        cls = kwargs.get("cls", False)
+        if hidden_layer or cls:
+            attention_mask = inputs.attention_mask
+            input_ids = inputs.input_ids
+            embeddings =  self.model(input_ids =input_ids,
+                                    attention_mask = attention_mask, 
+                                     return_dict=True, 
+                                     output_hidden_states=True).last_hidden_state
+            if cls:
+                embeddings = embeddings[:,0,:]
+            return EmbeddingsOutputs(embeddings, attention_mask)
+        else:
+            return super().get_embeddings(inputs, **kwargs)
+        
+    def applyFormating(self, texts):
+        return [self.split_numbers_in_text(text) for text in texts]
+    
+    def split_numbers_in_text(self,text):
+        return re.sub(r'\d+', lambda x: f" {' '.join(x.group())}", text)
