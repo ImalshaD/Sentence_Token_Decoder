@@ -1,5 +1,5 @@
 from .NitEncoder import NitEncoder
-from .NitEncoder import NitMT5encoder
+from .NitEncoder import NitMT5encoder, NitRobertaencoder
 from .NitLLM import NitLLM, NitQwenMathInstruct
 # __init__.py
 
@@ -10,5 +10,6 @@ __all__ = [
     'NitEncoder',
     'NitMT5encoder',
     'NitLLM',
-    'NitQwenMathInstruct'
+    'NitQwenMathInstruct',
+    'NitRobertaencoder'
 ]

@@ -48,7 +48,7 @@ class NitEncoder(ABC):
     
     def applyTemplate(self,texts):
         if self.template is not None:
-            return [self.template.format(text) for text in texts]
+            return [self.template.format(text=text) for text in texts]
         return texts
     
     def applyFormating(self,texts):
@@ -67,11 +67,11 @@ class NitEncoder(ABC):
         output = TokenizerOutputs(encoding["input_ids"].to(self.device_me), encoding["attention_mask"].to(self.device_me))
         return output
     
-    def get_embeddings(self, inputs : TokenizerOutputs):
+    def get_embeddings(self, inputs : TokenizerOutputs, **kwargs):
         return EmbeddingsOutputs(self.embedding_layer(inputs.input_ids), inputs.attention_mask)
 
-    def get_embeddings_from_text(self, texts):
-        return self.get_embeddings(self.get_inputIds(texts))
+    def get_embeddings_from_text(self, texts, **kwargs):
+        return self.get_embeddings(self.get_inputIds(texts), **kwargs)
     
 class NitMT5encoder(NitEncoder):
     def __init__(self,cache_dir, max_tokens = 100, padding='max_length'):
@@ -81,16 +81,13 @@ class NitMT5encoder(NitEncoder):
 
     def get_embeddings(self, inputs : TokenizerOutputs, **kwargs):
         hidden_layer = kwargs.get("hiddenLayer", True)
-        cls = kwargs.get("cls", False)
-        if hidden_layer or cls:
+        if hidden_layer:
             attention_mask = inputs.attention_mask
             input_ids = inputs.input_ids
             embeddings =  self.model(input_ids =input_ids,
                                     attention_mask = attention_mask, 
                                     return_dict=True, 
                                     output_hidden_states=True).last_hidden_state
-            if cls:
-                embeddings = embeddings[:,0,:]
             return EmbeddingsOutputs(embeddings, attention_mask)
         else:
             return super().get_embeddings(inputs, **kwargs)
@@ -103,15 +100,15 @@ class NitRobertaencoder(NitEncoder):
 
     def get_embeddings(self, inputs : TokenizerOutputs, **kwargs):
         hidden_layer = kwargs.get("hiddenLayer", True)
-        cls = kwargs.get("cls", False)
-        if hidden_layer or cls:
+        cls_token = kwargs.get("cls_token", False)
+        if hidden_layer or cls_token:
             attention_mask = inputs.attention_mask
             input_ids = inputs.input_ids
             embeddings =  self.model(input_ids =input_ids,
                                     attention_mask = attention_mask, 
                                      return_dict=True, 
                                      output_hidden_states=True).last_hidden_state
-            if cls:
+            if cls_token:
                 embeddings = embeddings[:,0,:]
             return EmbeddingsOutputs(embeddings, attention_mask)
         else:

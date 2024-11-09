@@ -7,7 +7,7 @@ class NitLLM(NitEncoder, ABC):
     
     def __init__(self,llm_name,cache_dir, max_tokens = 100 , padding='max_length'):
         model = AutoModelForCausalLM.from_pretrained(llm_name, cache_dir = cache_dir)
-        tokenizer = AutoTokenizer.from_pretrained(llm_name, cache_dir = cache_dir,padding_side='left')
+        tokenizer = AutoTokenizer.from_pretrained(llm_name, cache_dir = cache_dir,padding_side='right')
         super().__init__(model, tokenizer, max_tokens, padding)
 
     def get_outputs(self, embeddings : EmbeddingsOutputs, **kwargs):
