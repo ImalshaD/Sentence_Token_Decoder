@@ -43,9 +43,14 @@ class Conv1dAutoencoder(AlignmentModel):
             nn.Tanh()  # Use Tanh to output values in the range [-1, 1]
         )
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(self.input_length*200, 2048)
-        self.fc2 = nn.Linear(2048, self.output_length*200)
-        
+        self.fc1 = nn.Sequential(
+            nn.Linear(self.input_length*200, 2048),
+            nn.Tanh()
+            )
+        self.fc2 =nn.Sequential(
+            nn.Linear(2048, self.output_length*200),
+            nn.Tanh()
+            )
     def forward(self, x):
         # Transpose to (batch_size, in_channels, sequence_length)
         x = x.transpose(1, 2)  # Shape becomes (batch_size, 1536, 100)
@@ -68,3 +73,18 @@ class Conv1dAutoencoder(AlignmentModel):
         decoded = decoded.transpose(1, 2)  # Final shape (batch_size, 100, 1536)
         
         return decoded
+
+class CNN1DRBencoder(Conv1dAutoencoder):
+    def __init__(self, input_shape = (100,1536), output_shape = (100,1536)):
+        super().__init__(input_shape, output_shape)
+        
+        # Encoder
+        self.encoder = nn.Sequential(
+            
+            nn.Conv1d(in_channels=self.input_channels, out_channels=400, kernel_size=1),
+            nn.LeakyReLU(0.1),
+            
+            # Second layer to reduce to (100, 100)
+            nn.Conv1d(in_channels=400, out_channels=200, kernel_size=1),
+            nn.LeakyReLU(0.1),
+        )

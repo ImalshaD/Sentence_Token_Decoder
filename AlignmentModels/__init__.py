@@ -7,10 +7,11 @@
 
 from .AModels import AlignmentModel
 from .LinearAutoEncoder import LinearAlignementModel
-from .CNNAutoEncoder import Conv1dAutoencoder
+from .CNNAutoEncoder import Conv1dAutoencoder, CNN1DRBencoder
 
 __all__ = [
     'AlignmentModel',
     'LinearAlignementModel',
-    'Conv1dAutoencoder'
+    'Conv1dAutoencoder',
+    'CNN1DRBencoder'
 ]

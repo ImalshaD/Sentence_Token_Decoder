@@ -4,6 +4,7 @@ from transformers import AutoTokenizer, MT5EncoderModel, AutoModel
 
 import re
 from NitUtils import TokenizerOutputs, EmbeddingsOutputs
+from torch import nn
 
 class NitEncoder(ABC):
 
@@ -17,7 +18,11 @@ class NitEncoder(ABC):
         self.template = None
         self.device_me = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.to(self.device_me)
-
+    
+    def useDataParellel(self, gpu_ids):
+        self.model = nn.DataParallel(self.model, device_ids=gpu_ids)
+        self.embedding_layer = nn.DataParallel(self.embedding_layer, device_ids=gpu_ids)
+        
     def setPadding(self,padding):
         self.padding = padding
 
