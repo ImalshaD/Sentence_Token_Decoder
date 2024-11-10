@@ -106,15 +106,21 @@ class NitRobertaencoder(NitEncoder):
     def get_embeddings(self, inputs : TokenizerOutputs, **kwargs):
         hidden_layer = kwargs.get("hiddenLayer", True)
         cls_token = kwargs.get("cls_token", False)
-        if hidden_layer or cls_token:
+        pooler_output = kwargs.get("pooler_output", False)
+        if hidden_layer or cls_token or pooler_output:
             attention_mask = inputs.attention_mask
             input_ids = inputs.input_ids
             embeddings =  self.model(input_ids =input_ids,
                                     attention_mask = attention_mask, 
                                      return_dict=True, 
-                                     output_hidden_states=True).last_hidden_state
-            if cls_token:
-                embeddings = embeddings[:,0,:]
+                                     output_hidden_states=True)
+            if pooler_output:
+                embeddings = embeddings.pooler_output
+            
+            elif cls_token:
+                embeddings = embeddings.last_hidden_state[:,0,:]
+            else:
+                embeddings = embeddings.last_hidden_state
             return EmbeddingsOutputs(embeddings, attention_mask)
         else:
             return super().get_embeddings(inputs, **kwargs)

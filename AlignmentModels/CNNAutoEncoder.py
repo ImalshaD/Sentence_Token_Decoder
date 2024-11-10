@@ -88,3 +88,30 @@ class CNN1DRBencoder(Conv1dAutoencoder):
             nn.Conv1d(in_channels=400, out_channels=200, kernel_size=1),
             nn.LeakyReLU(0.1),
         )
+class CNN1DRBdecoder(Conv1dAutoencoder):
+    def __init__(self, input_shape = (100,1536), output_shape = (100,1536)):
+        super().__init__(input_shape, output_shape)
+        
+        # Decoder
+        self.decoder = nn.Sequential(
+            
+            # First layer to expand back to (100, 800)
+            nn.ConvTranspose1d(in_channels=200, out_channels=400, kernel_size=1),
+            nn.LeakyReLU(0.1),
+            
+            # Second layer to expand back to (100, 1536)
+            nn.ConvTranspose1d(in_channels=400, out_channels=self.output_channels, kernel_size=1),
+            nn.Tanh()  # Use Tanh to output values in the range [-1, 1]
+        )
+
+        self.fc1 = nn.Sequential(
+            nn.Linear(self.input_channels, 2048),
+            nn.Tanh()
+            )
+    
+    def forward(self, x):
+        x = self.fc1(x)
+        x = x.view(-1, 200, self.output_length)
+        x = self.decoder(x)
+        x = x.transpose(1, 2)
+        return x

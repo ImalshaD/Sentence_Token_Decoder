@@ -18,6 +18,13 @@ class NitLLM(NitEncoder, ABC):
             **kwargs
         )
     
+    def get_generation(self, embeddings : EmbeddingsOutputs, **kwargs):
+        outputs = self.model.generate(
+            attention_mask=embeddings.attention_mask,
+            inputs_embeds=embeddings.input_embeds,
+            **kwargs
+        )
+        return self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
     def get_outputs_from_text(self, texts, **kwargs):
         return self.get_outputs(self.get_embeddings_from_text(texts), **kwargs)
     
@@ -49,5 +56,10 @@ class NitQwenMathInstruct(NitLLM):
     
     def get_outputlogits_from_embeddings(self, embeddings : EmbeddingsOutputs, **kwargs):
         if self.use_best:
-            return self.get_outputs(embeddings, **self.best_config).logits
-        return self.get_outputs(embeddings, **kwargs).logits
+            return super().get_outputs(embeddings, **self.best_config).logits
+        return super().get_outputs(embeddings, **kwargs).logits
+
+    def get_generation(self, embeddings : EmbeddingsOutputs, **kwargs):
+        if self.use_best:
+            return super().get_generation(embeddings,**self.best_config)
+        return super().get_generation(embeddings,**kwargs)
