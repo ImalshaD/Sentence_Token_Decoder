@@ -1,64 +1,65 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[43]:
 
 
 from NitMultilingualEncoders import NitQwenMathInstruct, NitMT5encoder, NitRobertaencoder
 
 
-# In[2]:
+# In[44]:
 
 
 from AlignmentModels import Conv1dAutoencoder, CNN1DRBencoder, CNN1DRBdecoder, LSTMDecoder, TransformerDecoderModel
 
 
-# In[3]:
+# In[45]:
 
 
 import numpy as np
 import pandas as pd
 
 
-# In[4]:
+# In[46]:
 
 
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
 
 
-# In[5]:
+# In[47]:
 
 
 from torch.nn.utils import clip_grad_norm_
 
 
-# In[6]:
+# In[48]:
 
 
 # torch.cuda.set_device(4)
 
 
-# In[7]:
+# In[49]:
 
 
 torch.set_float32_matmul_precision('high')
 
 
-# In[8]:
+# In[50]:
 
 
 from tqdm import tqdm
 
 
-# In[9]:
+# In[51]:
 
 
 from datasets import load_dataset
 
 
-# In[10]:
+# In[52]:
 
 
 import re
@@ -69,7 +70,7 @@ def extract_num_output(text):
     return None
 
 
-# In[11]:
+# In[53]:
 
 
 data_dir = "data_cache"
@@ -78,44 +79,44 @@ math_ds = load_dataset("meta-math/MetaMathQA", cache_dir=data_dir)
 sen_ds = load_dataset("sentence-transformers/wikipedia-en-sentences",cache_dir=data_dir)
 
 
-# In[12]:
+# In[ ]:
 
 
 math_df = math_ds['train'].to_pandas()
 sen_df = sen_ds['train'].to_pandas()
 
 
-# In[13]:
+# In[ ]:
 
 
 math_df.head()
 
 
-# In[14]:
+# In[ ]:
 
 
 sen_df.head()
 
 
-# In[15]:
+# In[ ]:
 
 
 math_df['Numerical_output']= math_df['response'].apply(extract_num_output)
 
 
-# In[16]:
+# In[ ]:
 
 
 math_df.head()
 
 
-# In[17]:
+# In[ ]:
 
 
 math_df.isna().sum()
 
 
-# In[18]:
+# In[ ]:
 
 
 sen_df.isna().sum()
@@ -123,54 +124,54 @@ sen_df.isna().sum()
 
 # # Data Loaders
 
-# In[19]:
+# In[ ]:
 
 
 batch_size = 1024
 
 
-# In[20]:
+# In[ ]:
 
 
 math_train_query = math_df['query']
 sen_train = sen_df['sentence']
 
 
-# In[21]:
+# In[ ]:
 
 
 math_array = math_train_query.to_numpy()
 sen_array = sen_train.to_numpy()
 
 
-# In[22]:
+# In[ ]:
 
 
 math_X_train, math_X_test = train_test_split(math_array, test_size=0.2, random_state=42)
 sen_X_train, sen_X_test = train_test_split(sen_array, test_size=0.2, random_state=42)
 
 
-# In[23]:
+# In[ ]:
 
 
 combined_X_train = np.concatenate((math_X_train, sen_X_train), axis=0)
 
 
-# In[24]:
+# In[ ]:
 
 
 math_train_loader = DataLoader(math_X_train, batch_size=batch_size, shuffle=True)
 math_test_loader = DataLoader(math_X_test, batch_size=batch_size, shuffle=False)
 
 
-# In[25]:
+# In[ ]:
 
 
 sen_train_loader = DataLoader(sen_X_train, batch_size=batch_size, shuffle=True)
 sen_test_loader = DataLoader(sen_X_test, batch_size=batch_size, shuffle=False)
 
 
-# In[26]:
+# In[ ]:
 
 
 combined_train_loader = DataLoader(combined_X_train, batch_size=batch_size, shuffle=True)
@@ -178,53 +179,53 @@ combined_train_loader = DataLoader(combined_X_train, batch_size=batch_size, shuf
 
 # # LLM and Encoder init
 
-# In[27]:
+# In[ ]:
 
 
 max_tokens = 100
 padding = "max_length"
 
 
-# In[28]:
+# In[ ]:
 
 
 qwen_template = "<|im_start|>{text}<|im_end|>"
 
 
-# In[29]:
+# In[ ]:
 
 
 # gpu_ids = [0,1,2,3]
 
 
-# In[30]:
+# In[ ]:
 
 
 qwen = NitQwenMathInstruct(cache_dir=model_dir, max_tokens=max_tokens, padding=padding)
 qwen.setTemplate(qwen_template)
 
 
-# In[31]:
+# In[ ]:
 
 
 rb = NitRobertaencoder(cache_dir=model_dir, max_tokens=max_tokens, padding=padding)
 
 
-# In[32]:
+# In[ ]:
 
 
 # rb.useDataParellel(gpu_ids)
 # qwen.useDataParellel(gpu_ids)
 
 
-# In[33]:
+# In[ ]:
 
 
 rb_embedding_shape = rb.getEmbedding_shape()
 qwen_embedding_shape = qwen.getEmbedding_shape()
 
 
-# In[34]:
+# In[ ]:
 
 
 rb_embedding_shape, qwen_embedding_shape
@@ -232,65 +233,80 @@ rb_embedding_shape, qwen_embedding_shape
 
 # # Alignment Model
 
-# In[35]:
+# In[ ]:
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# In[36]:
+# In[ ]:
 
 
 align_model = CNN1DRBencoder(rb_embedding_shape, qwen_embedding_shape).to(device)
 # align_model = TransformerDecoderModel().to(device)
 
 
-# In[37]:
+# In[ ]:
+
+
+def count_parameters(model: nn.Module):
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    non_trainable_params = sum(p.numel() for p in model.parameters() if not p.requires_grad)
+    return trainable_params, non_trainable_params
+
+
+# In[ ]:
 
 
 # align_model = torch.nn.DataParallel(align_model, device_ids=gpu_ids)
-align_model = CNN1DRBdecoder(rb_embedding_shape, qwen_embedding_shape).to(device)
+align_model = LSTMDecoder().to(device)
+
+
+# In[ ]:
+
+
+count_parameters(align_model)
 
 
 # # Testing NITModels with embeddings
 
-# In[38]:
+# In[ ]:
 
 
 test_texts = ["how many legs do 400 dogs have, if each dog has 4 legs?"]
 
 
-# In[39]:
+# In[ ]:
 
 
 qwen.applyTemplate(test_texts)
 
 
-# In[40]:
+# In[ ]:
 
 
 qwen.get_embeddings_from_text(test_texts).input_embeds
 
 
-# In[41]:
+# In[ ]:
 
 
 rb.applyFormating(test_texts)
 
 
-# In[42]:
+# In[ ]:
 
 
 rb_embs = rb.get_embeddings_from_text(test_texts, pooler_output=True).input_embeds
 
 
-# In[43]:
+# In[ ]:
 
 
 rb_embs.shape
 
 
-# In[44]:
+# In[ ]:
 
 
 rb_embs[0]
@@ -298,7 +314,7 @@ rb_embs[0]
 
 # # Training
 
-# In[45]:
+# In[ ]:
 
 
 def save_checkpoint(epoch, model, optimizer, loss, path):
@@ -321,7 +337,6 @@ def train(model,encoder,llm ,train_loader, test_loader, optimizer, criterion ,ep
         train_loss = 0
         val_loss = 0
         best_val_loss = np.inf
-        model_saved_at_epoch = False
 
         for batch in tqdm(train_loader, desc = f'epoch_{epoch+1}/{epochs}'):
             
@@ -377,16 +392,13 @@ def train(model,encoder,llm ,train_loader, test_loader, optimizer, criterion ,ep
             val_loss /= len(test_loader.dataset)
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
-                save_checkpoint(epoch, model, optimizer, best_val_loss, "best_model.pth")
-                print(f"Best model saved with loss: {best_val_loss:.7f} at epoch {epoch+1}/{epochs}")
-                model_saved_at_epoch = True
+                save_checkpoint(epoch, model, optimizer, best_val_loss, "best_model_lstm.pth")
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_loss:.7f}, Val Loss: {val_loss:.7f}")
-        with open("logs.txt", "a") as log_file:
-            log_file.write(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_loss:.7f}, Val Loss: {val_loss:.7f} model saved {model_saved_at_epoch}\n")
-            model_saved_at_epoch = False
+        with open("lstm_logs.txt", "a") as log_file:
+            log_file.write(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_loss:.7f}, Val Loss: {val_loss:.7f}\n")
 
 
-# In[47]:
+# In[ ]:
 
 
 optimizer = torch.optim.Adam(align_model.parameters(), lr=1e-3)
@@ -394,13 +406,13 @@ criterion = torch.nn.MSELoss()
 # scaler = torch.amp.GradScaler("cuda")
 
 
-# In[48]:
+# In[ ]:
 
 
 # train(align_model, rb, qwen, sen_train_loader, sen_test_loader, optimizer, criterion, epochs=2, scaler=None)
 
 
-# In[49]:
+# In[ ]:
 
 
 train(align_model, rb, qwen, math_train_loader, math_test_loader, optimizer, criterion, epochs=100, scaler=None, clip_value=1.0)
@@ -410,12 +422,12 @@ train(align_model, rb, qwen, math_train_loader, math_test_loader, optimizer, cri
 
 
 def save_model(model, filename='model.pth'):
-    torch.save(model.state_dict(), filename)
+    torch.save(model.module.state_dict(), filename)
     print(f"Model saved to {filename}")
 
 
 # In[ ]:
 
 
-save_model(align_model, filename='qwen_rb.pth')
+save_model(align_model, filename='qwen_rb_pooler_lstm.pth')
 
